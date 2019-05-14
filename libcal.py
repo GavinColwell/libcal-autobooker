@@ -72,8 +72,8 @@ def submitBooking(room_id,start_time,end_time):
       'bookings[0][lid]': '820',
       'bookings[0][gid]': '1425',
       'bookings[0][eid]': str(room_id),
-      'bookings[0][start]': '2019-05-04 7:30',
-      'bookings[0][end]': '2019-05-04 8:00',
+      'bookings[0][start]': start_time,
+      'bookings[0][end]': end_time
     }
     
     s = requests.session()
