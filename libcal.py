@@ -12,7 +12,7 @@ def getRoomId(room_num):
     return roomDict[room_num]
 
 
-def getAvailability():
+def getAvailability(date,room='-1'):
     headers = {
     'origin': 'https://uconncalendar.lib.uconn.edu',
     'accept-encoding': 'gzip, deflate, br',
@@ -26,16 +26,20 @@ def getAvailability():
     'dnt': '1',
 }
 
+    dateFormat = "%Y-%m-%d"
+    startDate = date
+    endDate = datetime.strptime(date,dateFormat) + timedelta(days=1)
+    endDate = endDate.strftime(dateFormat) 
     data = {
       'lid': '820',
       'gid': '1425',
-      'eid': '-1',
-      'start': '2019-05-13',
-      'end': '2019-05-16'
+      'eid': room,
+      'start': startDate,
+      'end': endDate
     }
 
     response = requests.post('https://uconncalendar.lib.uconn.edu/spaces/availability/grid', headers=headers, data=data)
-    return response
+    return response.json()
 
 def getDate(time,duration=1,days=0):
     
