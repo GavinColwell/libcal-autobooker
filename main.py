@@ -2,10 +2,6 @@
 
 import libcal
 
-room = libcal.getRoomId("1-104C")
+room = libcal.getRoomId("B149A")
 
-dates = libcal.getDate("00:30", 2, 2)
-
-print(dates)
-
-#libcal.submitBooking(room, dates[0], dates[1])
+libcal.submitBooking(room, "2020-01-07" ,"13:00", 2)
