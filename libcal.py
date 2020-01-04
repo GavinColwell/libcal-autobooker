@@ -5,26 +5,27 @@ import re
 import os
 from datetime import datetime, timedelta
 import json
+from bs4 import BeautifulSoup as bs
 
 def getRoomId(room_num):
     with open('roomId.json') as f:
         roomDict = json.load(f)
     return roomDict[room_num]
 
-
+'''
 def getAvailability(date,room='-1'):
     headers = {
-    'origin': 'https://uconncalendar.lib.uconn.edu',
-    'accept-encoding': 'gzip, deflate, br',
-    'accept-language': 'en-US,en;q=0.9',
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36',
-    'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
-    'accept': 'application/json, text/javascript, */*; q=0.01',
-    'referer': 'https://uconncalendar.lib.uconn.edu/reserve/hbl',
-    'authority': 'uconncalendar.lib.uconn.edu',
-    'x-requested-with': 'XMLHttpRequest',
-    'dnt': '1',
-}
+        'origin': 'https://uconncalendar.lib.uconn.edu',
+        'accept-encoding': 'gzip, deflate, br',
+        'accept-language': 'en-US,en;q=0.9',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36',
+        'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'accept': 'application/json, text/javascript, */*; q=0.01',
+        'referer': 'https://uconncalendar.lib.uconn.edu/reserve/hbl',
+        'authority': 'uconncalendar.lib.uconn.edu',
+        'x-requested-with': 'XMLHttpRequest',
+        'dnt': '1',
+    }
 
     dateFormat = "%Y-%m-%d"
     startDate = date
@@ -40,14 +41,30 @@ def getAvailability(date,room='-1'):
 
     response = requests.post('https://uconncalendar.lib.uconn.edu/spaces/availability/grid', headers=headers, data=data)
     return response.json()
+'''
+def getAvailability(date):
+    url = "https://uconncalendar.lib.uconn.edu/spaces/accessible/ajax/group?prevGroupId=1425&gid=1425&capacity=0&date=" + date
+
+    r = requests.get(url)
+    soup = bs(r.text, features="html.parser")
+    slots = []
+    for slot in soup.select("input"):
+        s = {
+            "start" : slot.get("data-start"),
+            "end" : slot.get("data-end"),
+            "itemId" : slot.get("data-eid"),
+            "checksum" : slot.get("data-crc")
+        }
+        slots.append(s)
+    return slots
 
 def getDate(time,duration=1,days=0):
     
     date = datetime.now() + timedelta(days=days)
     
-    t = [int(x) for x in time.split(":")]
+    hr_delta, min_delta = [int(x) for x in time.split(":")]
     
-    startDate = date.replace(hour=t[0],minute=t[1])
+    startDate = date.replace(hour=ht_delta,minute=min_delta)
     
     endDate = startDate + timedelta(hours=duration)
     dateFormat = "%Y-%m-%d %H:%M"
@@ -56,7 +73,42 @@ def getDate(time,duration=1,days=0):
     endDate = endDate.strftime(dateFormat)
     return [startDate, endDate]
 
-def submitBooking(room_id,start_time,end_time):
+def increaseThirtyMin(start_time):
+    hrs, mins = [int(x) for x in start_time.split(":")]
+
+    if mins == 30:
+        return str(hrs + 1) + ":00"
+    else:
+        return str(hrs) + ":30"
+
+def createPayload(room_id, date ,start_time, num_slots):
+    avail_slots = getAvailability(date)
+    
+    payload = {
+        'libAuth': 'true',
+        'blowAwayCart': 'true'
+    }
+
+    i = 0
+    t = start_time
+    for slot in avail_slots:
+        if str(slot["itemId"]) == str(room_id):
+            if t in slot["start"]:
+                payload["bookings["+str(i)+"][lid]"] = '820'
+                payload["bookings["+str(i)+"][gid]"] = '1425'
+                payload["bookings["+str(i)+"][eid]"] = str(room_id)
+                payload["bookings["+str(i)+"][start]"] = slot["start"]
+                payload["bookings["+str(i)+"][end]"] = slot["end"]
+                payload["bookings["+str(i)+"][checksum]"] = slot["checksum"]
+
+                i += 1
+                t = increaseThirtyMin(t)
+                if i == num_slots:
+                    return payload
+    return payload
+
+
+def submitBooking(room_id, date, start_time, num_slots):
     headers = {
         'origin': 'https://uconncalendar.lib.uconn.edu',
         'accept-encoding': 'gzip, deflate, br',
@@ -70,21 +122,17 @@ def submitBooking(room_id,start_time,end_time):
         'dnt': '1',
     }
 
-    data = {
-      'libAuth': 'true',
-      'blowAwayCart': 'true',
-      'bookings[0][lid]': '820',
-      'bookings[0][gid]': '1425',
-      'bookings[0][eid]': str(room_id),
-      'bookings[0][start]': start_time,
-      'bookings[0][end]': end_time
-    }
+    data = createPayload(room_id, date, start_time, num_slots)
+
+    print(data)
     
     s = requests.session()
     
     response = s.post('https://uconncalendar.lib.uconn.edu/ajax/space/createcart', headers=headers, data=data)
     
     r = response.json()
+
+    print(r)
     
     login_page = s.get(r["redirect"]).text
     
@@ -123,7 +171,7 @@ def submitBooking(room_id,start_time,end_time):
     }
     
     response = s.post('https://login.uconn.edu/cas/login', headers=headers, params=params, data=data)
-    
+
     headers = {
         'origin': 'https://uconncalendar.lib.uconn.edu',
         'accept-encoding': 'gzip, deflate, br',
