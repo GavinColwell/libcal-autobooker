@@ -58,20 +58,14 @@ def getAvailability(date):
         slots.append(s)
     return slots
 
-def getDate(time,duration=1,days=0):
+def getDate(days_offset=0):
     
-    date = datetime.now() + timedelta(days=days)
+    date = datetime.now() + timedelta(days=days_offset)
     
-    hr_delta, min_delta = [int(x) for x in time.split(":")]
+    dateFormat = "%Y-%m-%d"
     
-    startDate = date.replace(hour=ht_delta,minute=min_delta)
-    
-    endDate = startDate + timedelta(hours=duration)
-    dateFormat = "%Y-%m-%d %H:%M"
-    
-    startDate = startDate.strftime(dateFormat)
-    endDate = endDate.strftime(dateFormat)
-    return [startDate, endDate]
+    dateStr = date.strftime(dateFormat)
+    return dateStr
 
 def increaseThirtyMin(start_time):
     hrs, mins = [int(x) for x in start_time.split(":")]

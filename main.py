@@ -1,7 +1,13 @@
 #! /usr/bin/env python3
 
-import libcal
+import libcal, json
 
-room = libcal.getRoomId("B149A")
+date = libcal.getDate(days_offset=3)
 
-libcal.submitBooking(room, "2020-01-07" ,"13:00", 2)
+with open("settings.json") as json_file:
+    settings = json.load(json_file)
+    room = settings["roomId"]
+    startTime = settings["startTime"]
+    numSlots = settings["numSlots"]
+
+    libcal.submitBooking(room,date,startTime,numSlots)
